@@ -1,3 +1,4 @@
+//Post.jsx
 import {
   BrowserRouter,
   Route,
@@ -11,13 +12,21 @@ import { supaClient } from './supa-client';
 import { timeAgo } from './time-ago';
 import UpVote from './UpVote';
 import usePostScore from './use-post-score';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
 
 export async function getPostDetails({ params: { postId }, userContext }) {
-  const { data, error } = await supaClient
-    .rpc('get_single_post_with_comments', { post_id: postId })
-    .select('*');
-  if (error || !data || data.length === 0) {
-    throw new Error('Post not found');
+  try {
+    const { data, error } = await supaClient
+      .rpc('get_single_post_with_comments', { post_id: postId })
+      .select('*');
+  } catch {
+    if (error) {
+      console.error('Error fetching post:', error);
+      return null; // Or any other error handling logic
+    }
+    if (error || !data || data.length === 0) {
+      throw new Error('Post not found');
+    }
   }
   const postMap = data.reduce((acc, post) => {
     acc[post.id] = post;

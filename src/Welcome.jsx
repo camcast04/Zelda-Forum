@@ -1,25 +1,8 @@
-import { useContext, useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from './App';
 import Dialog from './Dialog';
 import { supaClient } from './supa-client';
-
-export async function welcomeLoader() {
-  const {
-    data: { user },
-  } = await supaClient.auth.getUser();
-  if (!user) {
-    return redirect('/');
-  }
-  const { data } = await supaClient
-    .from('user_profiles')
-    .select('*')
-    .eq('user_id', user?.id)
-    .single();
-  if (data?.username) {
-    return redirect('/');
-  }
-}
 
 export default function Welcome() {
   const user = useContext(UserContext);
@@ -28,6 +11,24 @@ export default function Welcome() {
   const [serverError, setServerError] = useState('');
   const [formIsDirty, setFormIsDirty] = useState(false);
   const invalidString = useMemo(() => validateUsername(userName), [userName]);
+
+  const welcomeLoader = async () => {
+    const {
+      data: { user },
+    } = await supaClient.auth.getUser();
+    if (!user) {
+      navigate('/');
+      return;
+    }
+    const { data } = await supaClient
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', user?.id)
+      .single();
+    if (data?.username) {
+      navigate('/');
+    }
+  };
 
   return (
     <Dialog
@@ -87,7 +88,8 @@ export default function Welcome() {
             <button
               className="welcome-form-submit-button"
               type="submit"
-              disabled={!!invalidString}
+              disabled={invalidString != null}
+              // disabled={!!invalidString}
             >
               Submit
             </button>

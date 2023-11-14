@@ -1,3 +1,4 @@
+//database.type.js
 /**
  * @typedef {(string | number | boolean | null | { [key: string]: Json | undefined } | Json[])} Json
  */

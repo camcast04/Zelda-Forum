@@ -4,7 +4,7 @@ import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import MessageBoard from './MessageBoard';
 import AllPosts from './AllPosts';
 import { PostView } from './Post';
-import Welcome, { welcomeLoader } from './Welcome';
+import Welcome from './Welcome';
 import NavBar from './NavBar';
 import useSession from './use-session';
 
@@ -12,16 +12,6 @@ export const UserContext = createContext({
   session: null,
   profile: null,
 });
-
-function Layout() {
-  const supashipUserInfo = useSession();
-  return (
-    <UserContext.Provider value={supashipUserInfo}>
-      <NavBar />
-      <Outlet />
-    </UserContext.Provider>
-  );
-}
 
 const router = createBrowserRouter([
   {
@@ -45,7 +35,6 @@ const router = createBrowserRouter([
       {
         path: 'welcome',
         element: <Welcome />,
-        loader: welcomeLoader, // Added loader for 'welcome' path
       },
     ],
   },
@@ -53,6 +42,16 @@ const router = createBrowserRouter([
 
 function App() {
   return <RouterProvider router={router} />;
+}
+
+function Layout() {
+  const supashipUserInfo = useSession();
+  return (
+    <UserContext.Provider value={supashipUserInfo}>
+      <NavBar />
+      <Outlet />
+    </UserContext.Provider>
+  );
 }
 
 export default App;

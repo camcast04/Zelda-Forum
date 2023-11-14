@@ -1,3 +1,4 @@
+//use-post-score.js
 import { useEffect, useState } from 'react';
 import { supaClient } from './supa-client';
 

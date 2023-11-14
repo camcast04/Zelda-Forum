@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supaClient } from './supa-client';
 
 export const setReturnPath = () => {
@@ -21,9 +22,11 @@ export default function useSession() {
     });
   }, []);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (userInfo.session?.user && !userInfo.profile) {
-      listenToUserProfileChanges(userInfo.session.user.id).then(
+      listenToUserProfileChanges(userInfo.session.user.id, navigate).then(
         (newChannel) => {
           if (channel) {
             channel.unsubscribe();
@@ -35,18 +38,28 @@ export default function useSession() {
       channel?.unsubscribe();
       setChannel(null);
     }
-  }, [userInfo.session]);
+  }, [userInfo.session, navigate]);
+
+  // async function listenToUserProfileChanges(userId, navigate) {
+  //   const { data } = await supaClient
+  //     .from('user_profiles')
+  //     .select('*')
+  //     .filter('user_id', 'eq', userId);
 
   async function listenToUserProfileChanges(userId) {
     const { data } = await supaClient
       .from('user_profiles')
       .select('*')
       .filter('user_id', 'eq', userId);
+    if (!data?.length) {
+      setReturnPath();
+      navigate('/welcome');
+    }
 
     if (data?.[0]) {
       setUserInfo({ ...userInfo, profile: data[0] });
     } else {
-      setReturnPath();
+      localStorage.setItem('returnPath', window.location.pathname);
       navigate('/welcome');
     }
 

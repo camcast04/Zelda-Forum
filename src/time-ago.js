@@ -1,3 +1,5 @@
+//time-ago.js
+
 export function timeAgo(date) {
   const seconds = Math.floor(
     (new Date().getTime() - new Date(date).getTime()) / 1000
