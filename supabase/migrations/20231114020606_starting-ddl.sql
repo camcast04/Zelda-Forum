@@ -42,7 +42,17 @@ CREATE TABLE post_votes (
   UNIQUE (post_id, user_id)
 );
 
--- Functions and triggers
+-- Create email_list table
+CREATE TABLE email_list (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
+  user_id uuid REFERENCES auth.users (id),
+  email text NOT NULL,
+  approved boolean NOT NULL DEFAULT false,
+  stop_asking boolean NOT NULL DEFAULT false,
+  CONSTRAINT proper_email CHECK (email ~* '^[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')
+);
+
+-- Functions and Triggers
 CREATE OR REPLACE FUNCTION initialize_post_score()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -81,47 +91,59 @@ ALTER TABLE post_contents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_score ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_votes ENABLE ROW LEVEL SECURITY;
 
--- Policies for user_profiles
-CREATE POLICY "all can see" ON "public"."user_profiles"
-  AS PERMISSIVE FOR SELECT
-  TO PUBLIC USING (TRUE);
+-- Policies
+-- User Profiles
+CREATE POLICY "all can see" ON user_profiles FOR SELECT TO PUBLIC USING (TRUE);
+CREATE POLICY "users can insert" ON user_profiles FOR INSERT TO PUBLIC WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "owners can update" ON user_profiles FOR UPDATE TO PUBLIC USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "users can insert" ON "public"."user_profiles"
-  AS PERMISSIVE FOR INSERT
-  TO PUBLIC WITH CHECK (auth.uid() = user_id);
+-- Posts
+CREATE POLICY "all can see" ON posts FOR SELECT TO PUBLIC USING (TRUE);
+CREATE POLICY "owners can insert" ON posts FOR INSERT TO PUBLIC WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "owners can update" ON "public"."user_profiles"
-  AS PERMISSIVE FOR UPDATE
-  TO PUBLIC USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+-- Post Contents
+CREATE POLICY "all can see" ON post_contents FOR SELECT TO PUBLIC USING (TRUE);
+CREATE POLICY "authors can create" ON post_contents FOR INSERT TO PUBLIC WITH CHECK (auth.uid() = user_id);
 
--- Policies for post_contents
-CREATE POLICY "all can see" ON "public"."post_contents"
-  AS PERMISSIVE FOR SELECT
-  TO PUBLIC USING (TRUE);
+-- Post Score
+CREATE POLICY "all can see" ON post_score FOR SELECT TO PUBLIC USING (TRUE);
 
-CREATE POLICY "authors can create" ON "public"."post_contents"
-  AS PERMISSIVE FOR INSERT
-  TO PUBLIC WITH CHECK (auth.uid() = user_id);
+-- Post Votes
+CREATE POLICY "all can see" ON post_votes FOR SELECT TO PUBLIC USING (TRUE);
+CREATE POLICY "owners can insert" ON post_votes FOR INSERT TO PUBLIC WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "owners can update" ON post_votes FOR UPDATE TO PUBLIC USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- Policies for post_score
-CREATE POLICY "all can see" ON "public"."post_score"
-  AS PERMISSIVE FOR SELECT
-  TO PUBLIC USING (TRUE);
+-- Email List
+CREATE POLICY "owners can see their own" ON email_list FOR SELECT TO PUBLIC USING (auth.uid() = user_id);
+CREATE POLICY "owners can insert for themselves" ON email_list FOR INSERT TO PUBLIC WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "owners can update their data" ON email_list FOR UPDATE TO PUBLIC USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- Policies for post_votes
-CREATE POLICY "all can see" ON "public"."post_votes"
-  AS PERMISSIVE FOR SELECT
-  TO PUBLIC USING (TRUE);
+-- Functions for Posts and Comments
+CREATE OR REPLACE FUNCTION create_new_post(userId uuid, title text, content text)
+RETURNS uuid
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_id uuid := uuid_generate_v4();
+BEGIN
+  INSERT INTO posts (id, user_id, path) VALUES (new_id, userId, 'root');
+  INSERT INTO post_contents (id, post_id, user_id, title, content) VALUES (uuid_generate_v4(), new_id, userId, title, content);
+  RETURN new_id;
+END;
+$$;
 
-CREATE POLICY "owners can insert" ON "public"."post_votes"
-  AS PERMISSIVE FOR INSERT
-  TO PUBLIC WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "owners can update" ON "public"."post_votes"
-  AS PERMISSIVE FOR UPDATE
-  TO PUBLIC USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+CREATE OR REPLACE FUNCTION create_new_comment(userId uuid, content text, path ltree)
+RETURNS uuid
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_id uuid := uuid_generate_v4();
+BEGIN
+  INSERT INTO posts (id, user_id, path) VALUES (new_id, userId, path);
+  INSERT INTO post_contents (id, post_id, user_id, content) VALUES (uuid_generate_v4(), new_id, userId, content);
+  RETURN new_id;
+END;
+$$;
 
 -- Realtime Publication
 BEGIN;
