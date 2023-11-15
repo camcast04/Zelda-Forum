@@ -16,39 +16,48 @@ import React, { useContext, useEffect, useState, useMemo } from 'react';
 
 export async function getPostDetails({ params: { postId }, userContext }) {
   try {
-    const { data, error } = await supaClient
+    console.log('Post ID:', postId);
+    const response = await supaClient
       .rpc('get_single_post_with_comments', { post_id: postId })
       .select('*');
-  } catch {
+    const data = response.data;
+    const error = response.error;
+
     if (error) {
       console.error('Error fetching post:', error);
-      return null; // Or any other error handling logic
+      return null;
     }
-    if (error || !data || data.length === 0) {
-      throw new Error('Post not found');
+
+    if (!data || data.length === 0) {
+      console.error('No data found or data is empty');
+      return null;
     }
+    const postMap = data.reduce((acc, post) => {
+      acc[post.id] = post;
+      return acc;
+    }, {});
+
+    const post = postMap[postId];
+    const comments = data.filter((x) => x.id !== postId);
+    if (!userContext.session?.user) {
+      return { post, comments };
+    }
+    const { data: votesData } = await supaClient
+      .from('post_votes')
+      .select('*')
+      .eq('user_id', userContext.session?.user.id);
+    if (!votesData) {
+      return;
+    }
+    const votes = votesData.reduce((acc, vote) => {
+      acc[vote.post_id] = vote.vote_type;
+      return acc;
+    }, {});
+    return { post, comments, myVotes: votes };
+  } catch (e) {
+    console.error('Error fetching post:', e);
+    throw new Error('Post not found');
   }
-  const postMap = data.reduce((acc, post) => {
-    acc[post.id] = post;
-    return acc;
-  }, {});
-  const post = postMap[postId];
-  const comments = data.filter((x) => x.id !== postId);
-  if (!userContext.session?.user) {
-    return { post, comments };
-  }
-  const { data: votesData } = await supaClient
-    .from('post_votes')
-    .select('*')
-    .eq('user_id', userContext.session?.user.id);
-  if (!votesData) {
-    return;
-  }
-  const votes = votesData.reduce((acc, vote) => {
-    acc[vote.post_id] = vote.vote_type;
-    return acc;
-  }, {});
-  return { post, comments, myVotes: votes };
 }
 
 export function PostView() {

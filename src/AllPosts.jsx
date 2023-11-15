@@ -1,3 +1,4 @@
+// //AllPosts.jsx
 // import React, {
 //   useContext,
 //   useEffect,
@@ -209,6 +210,7 @@
 //     </div>
 //   );
 // }
+
 import React, { useContext, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { UserContext } from './App';

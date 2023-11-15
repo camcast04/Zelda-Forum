@@ -115,15 +115,25 @@ RETURNS TABLE (
     path ltree
 ) AS $$
 BEGIN
-    RETURN QUERY SELECT p.id, up.username, p.created_at, pc.title, pc.content, ps.score, p.path
-                 FROM posts p
-                 JOIN post_contents pc ON p.id = pc.post_id
-                 JOIN post_score ps ON p.id = ps.post_id
-                 JOIN user_profiles up ON p.user_id = up.user_id
-                 WHERE p.path <@ text2ltree('root.' || replace(pid::text, '-', '_'))
-                       OR p.id = post_id;
+    RETURN QUERY SELECT 
+        p.id, 
+        up.username AS author_name, 
+        p.created_at, 
+        pc.title, 
+        pc.content, 
+        ps.score, 
+        p.path
+    FROM 
+        posts p
+        JOIN post_contents pc ON p.id = pc.post_id
+        JOIN post_score ps ON p.id = ps.post_id
+        JOIN user_profiles up ON p.user_id = up.user_id
+    WHERE 
+        p.path <@ text2ltree('root.' || post_id::text)
+        OR p.id = post_id;
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION create_new_post(user_id uuid, title text, content text)
 RETURNS boolean AS $$

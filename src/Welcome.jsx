@@ -1,4 +1,6 @@
-import React, { useContext, useMemo, useState } from 'react';
+// Welcome.jsx
+
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from './App';
 import Dialog from './Dialog';
@@ -12,23 +14,38 @@ export default function Welcome() {
   const [formIsDirty, setFormIsDirty] = useState(false);
   const invalidString = useMemo(() => validateUsername(userName), [userName]);
 
-  const welcomeLoader = async () => {
-    const {
-      data: { user },
-    } = await supaClient.auth.getUser();
-    if (!user) {
-      navigate('/');
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!user.session || !user.session.user || !user.session.user.id) {
+      console.error('No valid session or user ID found');
       return;
     }
-    const { data } = await supaClient
+    supaClient
       .from('user_profiles')
-      .select('*')
-      .eq('user_id', user?.id)
-      .single();
-    if (data?.username) {
-      navigate('/');
-    }
+      .insert([
+        {
+          user_id: user.session.user.id,
+          username: userName,
+        },
+      ])
+      .then(({ error, data }) => {
+        if (error) {
+          setServerError(`Username "${userName}" is already taken`);
+        } else if (data) {
+          const target = localStorage.getItem('returnPath') || '/';
+          localStorage.removeItem('returnPath');
+          navigate(target);
+        }
+      });
   };
+
+  useEffect(() => {
+    if (user.profile) {
+      const target = localStorage.getItem('returnPath') || '/';
+      localStorage.removeItem('returnPath');
+      navigate(target);
+    }
+  }, [user.profile, navigate]);
 
   return (
     <Dialog
@@ -40,29 +57,7 @@ export default function Welcome() {
           <p className="text-center">
             Let's get started by creating a username:
           </p>
-          <form
-            className="welcome-name-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              supaClient
-                .from('user_profiles')
-                .insert([
-                  {
-                    user_id: user.session?.user.id || '',
-                    username: userName,
-                  },
-                ])
-                .then(({ error }) => {
-                  if (error) {
-                    setServerError(`Username "${userName}" is already taken`);
-                  } else {
-                    const target = localStorage.getItem('returnPath') || '/';
-                    localStorage.removeItem('returnPath');
-                    navigate(target);
-                  }
-                });
-            }}
-          >
+          <form className="welcome-name-form" onSubmit={handleSubmit}>
             <input
               name="username"
               placeholder="Username"
@@ -88,8 +83,7 @@ export default function Welcome() {
             <button
               className="welcome-form-submit-button"
               type="submit"
-              disabled={invalidString != null}
-              // disabled={!!invalidString}
+              disabled={!!invalidString}
             >
               Submit
             </button>
@@ -99,7 +93,6 @@ export default function Welcome() {
     />
   );
 }
-
 function validateUsername(username) {
   if (!username) {
     return 'Username is required';

@@ -1,3 +1,5 @@
+//Login.jsx
+
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useContext, useEffect, useState } from 'react';

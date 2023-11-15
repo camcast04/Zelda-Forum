@@ -1,3 +1,4 @@
+//CreatePost.jsx
 import React, { useContext, useRef, useState } from 'react';
 import { UserContext } from './App';
 import { supaClient } from './supa-client';
